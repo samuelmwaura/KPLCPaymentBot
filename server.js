@@ -2,7 +2,8 @@ const express= require('express');
 const morgan= require('morgan');
 const dotenv= require('dotenv');
 const sequelize=require('./database/connection');
-const { Router } = require('express');
+const Router= require('./routers/requestRouter');
+
 
 //FIRING THE SERVER
 const app = express();
@@ -17,13 +18,14 @@ dotenv.config();
 port=process.env.PORT
 
 //SETTING UP THE DTATABASE CONNECTION
-sequelize.sync().then(()=>console.log('Db synced successfully')).catch((err)=>console.log(err));
+sequelize.sync().then(()=>console.log('Db synced successfully.')).catch((err)=>console.log(err));
+
 
 //HANDLING REQUESTS
 app.use(Router)
 
 //SERVER SETUP
 app.listen(port,()=>{
-    console.log(`Server listening from ${port}`);
+    console.log(`Server listening from port ${port}`);
 })
 
