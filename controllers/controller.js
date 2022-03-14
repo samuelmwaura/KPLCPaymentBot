@@ -16,8 +16,8 @@ console.log(req.body.event);
 const customerInput= req.body.event.moText[0].content;//the message from the customer.
 const customerPhone= req.body.event.moText[0].from;//the customer number.
 
-   
-setTimeout(functions.sessionTimeout,180000);
+
+//setTimeout(functions.sessionTimeout(functions.messageObject,customerPhone),60000);
 
 //CHECK FOR THE CUTOMER STAGE AND RESPOND---NOW IN THE MAIN BODY LOGIC
     customer.findOne({where:{phone:customerPhone}}).then(existingCustomer=>{
@@ -41,8 +41,12 @@ setTimeout(functions.sessionTimeout,180000);
                 stage.update({stage:'1*2'},{where:{customerPhone}}).then().catch(err=>console.log(err));
                  break;
                  case '3':
-                functions.stage13(functions.messageObject,customerPhone);
+                functions.fetchTokens(functions.messageObject,customerPhone);
+                //termination
                  break;
+                 case '00':
+                     functions.stage1(functions.messageObject,customerPhone);
+                break;
                  default:
                  functions.messageObject.messages[0].content=`You entered invalid Option.\nInteracting with Kenya Power is pretty easy.Please tell us what you would like to do.\n1.Add a meter.\n2.Buy Tokens.\n3.View Previous tokens.`;
                  functions.replyFunction(functions.messageObject);
@@ -59,20 +63,32 @@ setTimeout(functions.sessionTimeout,180000);
                  functions.stage1(functions.messageObject,customerPhone);
                  break;
                  default:
-                const meterNumber=parseInt(customerInput);
-               //here goes the logic to verify the meter number by Kplc. After verification the number is saved to db.
-                
+                if(isNaN(customerInput)){
+                functions.messageObject.messages[0].content='Please confirm the meter number and re-enter it.\n0.Back\n00.Home Menu'
+                functions.replyFunction(functions.messageObject);                
+                }else{
+                    const meterNumber=parseInt(customerInput);
+                    const testRegExp = new RegExp("^[0-9]{10}$");// maximum amount for 2147483647.Verifiying the meter number.
+                    if(!testRegExp.test(meterNumber)){
+                     functions.messageObject.messages[0].content=`Please confirm the meter number and re-enter it.\n0.Back\n00.Home Menu`;
+                     functions.replyFunction(functions.messageObject)
+                    }else{
+                //here goes the logic to verify the meter number by Kplc. After verification the number is saved to db.(KPLC API);
+                     
                 meter.findOne({where:{meterNumber}}).then( existingMeter=>{
-                 if (existingMeter){
-                functions.messageObject.messages[0].content=`The meter number ${customerInput} is already in your list of meters.\n00.Home Menu`;
-                functions.replyFunction(functions.messageObject);
-                } else{
-                meter.create({meterNumber,customerPhone}).then(async ()=>{
-                functions.messageObject.messages[0].content=`Meter number ${customerInput} added successfully to your meters.\n0.Back\n00.Home`;
-                functions.replyFunction(functions.messageObject);
-                }).catch(err=>console.log(err));
+                    if (existingMeter){
+                   functions.messageObject.messages[0].content=`The meter number ${customerInput} is already in your list of meters.\n00.Home Menu`;
+                   functions.replyFunction(functions.messageObject);
+                   } else{
+                   meter.create({meterNumber,customerPhone}).then(()=>{
+                   functions.messageObject.messages[0].content=`Meter number ${customerInput} added successfully to your meters.\n0.Back\n00.Home`;
+                   functions.replyFunction(functions.messageObject);
+                   functions.stage1(functions.messageObject,customerPhone);
+                   }).catch(err=>console.log(err));
+                   }
+                   }).catch(err=>console.log(err));
+                    };                    
                 }
-                }).catch(err=>console.log(err));
                 break;
                 }
 
@@ -94,7 +110,7 @@ setTimeout(functions.sessionTimeout,180000);
                     functions.stage1(functions.messageObject,customerPhone);
                 break;
                 default:
-                    functions.messageObject.messages[0].content=`Please enter a valid choice.\n1.Buy Prepaid Tokens.\n 2.Request Postpaid Tokens.\n00.Home Menu`;
+                    functions.messageObject.messages[0].content=`Please enter a valid choice.\n1.Buy Prepaid Tokens.\n 2.Request Postpaid Tokens.\n0.Back\n00.Home Menu`;
                     functions.replyFunction(functions.messageObject);
                 break;
 
@@ -114,10 +130,17 @@ setTimeout(functions.sessionTimeout,180000);
                         functions.stage11(functions.messageObject);
                         stage.update({stage:'1*2*1*0'},{where:{customerPhone}}).then().catch(err=>console.log(err));
                     break;
+                     case '1':
+                         functions.fetchMeters(functions.messageObject,customerPhone);
+                         stage.update({stage:'1*2*1*1'},{where:{customerPhone}}).then().catch(err=>console.log(err))
+                    break;
+                    default:
+                       functions.messageObject.messages[0].content=`You entered an invalid choice.\n0.Enter Meter Number.\n1.Choose from my meters.\n00.Back\n000.Home Menu`;
+                       functions.replyFunction(functions.messageObject);
+                    break;
                 }
             break;
-
-             case '1*2*2':
+            case '1*2*2':
                  switch(customerInput){
                      case '0':
                      functions.stage12(functions.messageObject);
@@ -133,45 +156,68 @@ setTimeout(functions.sessionTimeout,180000);
 
                  }
              break;
-             case '1*2*1*0'://no function to handle this in the functions file since it is just a step to accept and process input. Nothing to show. 
+            case '1*2*1*0'://no function to handle this in the functions file since it is just a step to accept and process input. Nothing to show. 
                  switch(customerInput){
                   case '0':
                       functions.stage121(functions.messageObject,customerPhone);
-                      stage.update({stage:'121'},{where:{customerPhone}}).then().catch(err=>console.log(err));
+                      stage.update({stage:'1*2*1'},{where:{customerPhone}}).then().catch(err=>console.log(err));
                   break;
                   case '00':
                       functions.stage1(functions.messageObject,customerPhone);
                   break;
                   default:
-                      const id = parseInt(customerInput);
-                      meter.findOne({where:{id}}).then((existingMeter)=>{
-                      if(existingMeter){
 
-                      //LOGIC TO COMPLETE THE PAYMENT
-
-                      }else{
-                      functions.messageObject.message[0].content=`Not a VALID Meter ID.PLease reply with the meter Id.\nPlease indicate the meter to buy for.\n0.Enter Meter Number or.\n Reply with Id of your meters below.\nID     METERNUMBER\n${functions.fetchMeters(phone)}.\n00.Back\n000.Home Menu`
-                      }
-                      }).catch(err=>console.log(err));
+                       if(isNaN(customerInput)){
+                   functions.messageObject.messages[0].content='You entered an invalid meter Number.Reply With a valid meter Number.\n0.Back\n00.Home Menu`'
+                   functions.replyFunction(functions.messageObject);
+                     }else{
+                        const meterId=parseInt(customerInput);
+                       // Logic to verify KPLC meter format.   
+                       const testRegExp = new RegExp("^[0-9]{10}$");// maximum amount for 2147483647
+                    if(!testRegExp.test(meterNumber)){
+                     functions.messageObject.messages[0].content=`You entered an invalid meter Number.Reply With a valid meter Number.\n0.Back\n00.Home Menu`;
+                     functions.replyFunction(functions.messageObject)
+                    }else{
+                        require.query({'grant_type':'client_credentials'});
+                        require.headers({'Authorization':'Basic SWZPREdqdkdYM0FjWkFTcTdSa1RWZ2FTSklNY001RGQ6WUp4ZVcxMTZaV0dGNFIzaA=="'});
+                        require.end(res=>{
+                            if(res.error)console.log(res.error);
+                            console.log(res.body);
+                        });
+                //LOGIC TO COMPLETE THE PAYMENT. THIS IS GOING TO BE IN A FUNCTION BECAUSE THE SAME IS GOING TO BE USED ABOVE IN THE FUNCTION.  
+                    };                                         
+                     }
                    break;
 
                  }
              break;
-            case '1*3':
+            case '1*2*1*1':
+                 switch(customerInput){
+                 case '00':
+                     functions.stage1(functions.messageObject,customerPhone);
+                 break;
+                 case '0':
+                    functions.stage121(functions.messageObject,customerPhone);
+                    stage.update({stage:'1*2*1'},{where:{customerPhone}}).then().catch(err=>console.log(err));
+                break;
+                 default:
+                     if(isNaN(customerInput)){
+                   functions.messageObject.messages[0].content='Please reply again with a Valid meter Id.\n0.Back\n00.Home Menu`'
+                   functions.replyFunction(functions.messageObject);
+                     }else{
+                        const meterId=parseInt(customerInput);
+                        meter.findOne({where:{id:meterId}}).then(existingMeter=>{
+                        functions.messageObject.messages[0].content='Tunakulipia sai tu.\n0.Back\n00.Home Menu`';
+                        functions.replyFunction(functions.messageObject);
 
-               
-            break;
-            case '1*1*1':
+                //LOGIC TO COMPLETE THE PAYMENT. THIS IS GOING TO BE IN A FUNCTION BECAUSE THE SAME IS GOING TO BE USED ABOVE IN THE FUNCTION.       
+                        }).catch(err=>console.log(err));                     
+                     }
+                 break;
                 
-            break;
-            case '1*1*2':
-               
-                break;
-            case '1*2*1':
-               
-                break;
-            case '1*2*2':
-                           
+                 }
+
+             break;                           
          }          
 
             }).catch(functions.errorFunction);

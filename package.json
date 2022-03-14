@@ -10,11 +10,12 @@
   "author": "Sam",
   "license": "ISC",
   "dependencies": {
-    "express": "^4.17.3",
     "dotenv": "^16.0.0",
+    "express": "^4.17.3",
     "morgan": "^1.10.0",
     "mysql2": "^2.3.3",
     "request": "^2.88.2",
-    "sequelize": "^6.17.0"
+    "sequelize": "^6.17.0",
+    "unirest": "^0.6.0"
   }
 }
