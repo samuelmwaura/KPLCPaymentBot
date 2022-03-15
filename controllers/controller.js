@@ -1,7 +1,6 @@
 const {customer,token,payment,meter,stage,session}= require('../models/KplcDatabaseModel');
 const functions= require('./functions');
 
-
 //SERVER RESPONSE TEST FUNCTION
 const serverTestFunction=(req,res)=>{
     res.send('Testing the server');
@@ -15,9 +14,18 @@ console.log(req.body.event);
 //HANDLER VARIABLES
 const customerInput= req.body.event.moText[0].content;//the message from the customer.
 const customerPhone= req.body.event.moText[0].from;//the customer number.
+//global.paymentMeter=0;
 
+//SET TIMEOUT FUNCTION AND CALL - Customer stopped before the conversation is over
+const sessionTimeout=()=>{  
+   functions.endSession(customerPhone);
+    stage.update({stage:'1'},{where:{customerPhone}}).then(()=>{
+      functions.messageObject.messages[0].content='You stayed for too long without replying,Please begin another session:\n1.Add a meter.\n2.Buy Tokens.\n3.View Previous tokens.';
+      functions.replyFunction(functions.messageObject);
+    }).catch(err=>console.log(err));
+    }
 
-//setTimeout(functions.sessionTimeout(functions.messageObject,customerPhone),60000);
+//setTimeout(sessionTimeout,60000);
 
 //CHECK FOR THE CUTOMER STAGE AND RESPOND---NOW IN THE MAIN BODY LOGIC
     customer.findOne({where:{phone:customerPhone}}).then(existingCustomer=>{
@@ -42,6 +50,7 @@ const customerPhone= req.body.event.moText[0].from;//the customer number.
                  break;
                  case '3':
                 functions.fetchTokens(functions.messageObject,customerPhone);
+                stage.update({stage:'1*3'},{where:{customerPhone}}).then().catch(err=>console.log(err));
                 //termination
                  break;
                  case '00':
@@ -71,18 +80,19 @@ const customerPhone= req.body.event.moText[0].from;//the customer number.
                     const testRegExp = new RegExp("^[0-9]{10}$");// maximum amount for 2147483647.Verifiying the meter number.
                     if(!testRegExp.test(meterNumber)){
                      functions.messageObject.messages[0].content=`Please confirm the meter number and re-enter it.\n0.Back\n00.Home Menu`;
-                     functions.replyFunction(functions.messageObject)
+                     functions.replyFunction(functions.messageObject);
                     }else{
-                //here goes the logic to verify the meter number by Kplc. After verification the number is saved to db.(KPLC API);
-                     
+                                    
                 meter.findOne({where:{meterNumber}}).then( existingMeter=>{
                     if (existingMeter){
                    functions.messageObject.messages[0].content=`The meter number ${customerInput} is already in your list of meters.\n00.Home Menu`;
                    functions.replyFunction(functions.messageObject);
+                   functions.endSession(customerPhone);
                    } else{
                    meter.create({meterNumber,customerPhone}).then(()=>{
                    functions.messageObject.messages[0].content=`Meter number ${customerInput} added successfully to your meters.\n0.Back\n00.Home`;
                    functions.replyFunction(functions.messageObject);
+                   functions.endSession(customerPhone);
                    functions.stage1(functions.messageObject,customerPhone);
                    }).catch(err=>console.log(err));
                    }
@@ -96,7 +106,7 @@ const customerPhone= req.body.event.moText[0].from;//the customer number.
             case '1*2':
                 switch(customerInput){
                 case '1':
-                    functions.stage121(functions.messageObject,customerPhone);
+                    functions.stage121(functions.messageObject);
                     stage.update({stage:'1*2*1'},{where:{customerPhone}}).then().catch(err=>console.log(err));
                 break;
                 case '2':
@@ -132,7 +142,7 @@ const customerPhone= req.body.event.moText[0].from;//the customer number.
                     break;
                      case '1':
                          functions.fetchMeters(functions.messageObject,customerPhone);
-                         stage.update({stage:'1*2*1*1'},{where:{customerPhone}}).then().catch(err=>console.log(err))
+                         //stage.update({stage:'1*2*1*1'},{where:{customerPhone}}).then().catch(err=>console.log(err))
                     break;
                     default:
                        functions.messageObject.messages[0].content=`You entered an invalid choice.\n0.Enter Meter Number.\n1.Choose from my meters.\n00.Back\n000.Home Menu`;
@@ -159,7 +169,7 @@ const customerPhone= req.body.event.moText[0].from;//the customer number.
             case '1*2*1*0'://no function to handle this in the functions file since it is just a step to accept and process input. Nothing to show. 
                  switch(customerInput){
                   case '0':
-                      functions.stage121(functions.messageObject,customerPhone);
+                      functions.stage121(functions.messageObject);
                       stage.update({stage:'1*2*1'},{where:{customerPhone}}).then().catch(err=>console.log(err));
                   break;
                   case '00':
@@ -171,20 +181,17 @@ const customerPhone= req.body.event.moText[0].from;//the customer number.
                    functions.messageObject.messages[0].content='You entered an invalid meter Number.Reply With a valid meter Number.\n0.Back\n00.Home Menu`'
                    functions.replyFunction(functions.messageObject);
                      }else{
-                        const meterId=parseInt(customerInput);
+                        const meterNumber=parseInt(customerInput);
                        // Logic to verify KPLC meter format.   
                        const testRegExp = new RegExp("^[0-9]{10}$");// maximum amount for 2147483647
                     if(!testRegExp.test(meterNumber)){
                      functions.messageObject.messages[0].content=`You entered an invalid meter Number.Reply With a valid meter Number.\n0.Back\n00.Home Menu`;
                      functions.replyFunction(functions.messageObject)
                     }else{
-                        require.query({'grant_type':'client_credentials'});
-                        require.headers({'Authorization':'Basic SWZPREdqdkdYM0FjWkFTcTdSa1RWZ2FTSklNY001RGQ6WUp4ZVcxMTZaV0dGNFIzaA=="'});
-                        require.end(res=>{
-                            if(res.error)console.log(res.error);
-                            console.log(res.body);
-                        });
-                //LOGIC TO COMPLETE THE PAYMENT. THIS IS GOING TO BE IN A FUNCTION BECAUSE THE SAME IS GOING TO BE USED ABOVE IN THE FUNCTION.  
+                        req.paymentMeter=existingMeter;
+                        stage.update({stage:'1*2*1*0*amount'}).then().catch(err=>console.log(err));
+                        functions.amountFunction(functions.messageObject);
+                    //functions.paymentFunction(functions.messageObject,customerPhone,meterNumber);
                     };                                         
                      }
                    break;
@@ -197,7 +204,7 @@ const customerPhone= req.body.event.moText[0].from;//the customer number.
                      functions.stage1(functions.messageObject,customerPhone);
                  break;
                  case '0':
-                    functions.stage121(functions.messageObject,customerPhone);
+                    functions.stage121(functions.messageObject);
                     stage.update({stage:'1*2*1'},{where:{customerPhone}}).then().catch(err=>console.log(err));
                 break;
                  default:
@@ -207,17 +214,92 @@ const customerPhone= req.body.event.moText[0].from;//the customer number.
                      }else{
                         const meterId=parseInt(customerInput);
                         meter.findOne({where:{id:meterId}}).then(existingMeter=>{
-                        functions.messageObject.messages[0].content='Tunakulipia sai tu.\n0.Back\n00.Home Menu`';
-                        functions.replyFunction(functions.messageObject);
-
-                //LOGIC TO COMPLETE THE PAYMENT. THIS IS GOING TO BE IN A FUNCTION BECAUSE THE SAME IS GOING TO BE USED ABOVE IN THE FUNCTION.       
+                        if(existingMeter){                            
+                            req.paymentMeter+=existingMeter;
+                            stage.update({stage:'1*2*1*1*amount'},{where:{customerPhone}}).then().catch(err=>console.log(err));
+                            functions.amountFunction(functions.messageObject);
+                            //functions.paymentFunction(functions.messageObject,amount,customerPhone,existingMeter);
+                        }else{
+                            functions.messageObject.messages[0].content=`You entered a wrong Id for a meter.Please renter a valid meter Id from your meters.\n0.Back\n00.Home Menu`;
+                            functions.replyFunction(functions.messageObject);
+                        }
+                       
                         }).catch(err=>console.log(err));                     
                      }
                  break;
                 
                  }
 
-             break;                           
+             break;  
+            //  case 'termination':
+            //      switch(customerInput){
+            //     case '00' :
+            //         functions.stage1(functions.messageObject,customerPhone);
+            //     break;
+            //     case '0':
+            //         stage.update({stage:'121'},{where:{customerPhone}}).then(()=>functions.stage121(functions.messageObject)).catch(err=>console.log(err));
+            //     break;
+            //     default:
+
+            //     break;
+            //      }
+            //  break;
+             case '1*3':
+                 switch(customerInput){
+                    case '00':
+                        functions.endSession(customerPhone);
+                        functions.stage1(functions.messageObject,customerPhone);
+                    break;
+                    default:
+                    functions.endSession(customerPhone);
+                     functions.messageObject.messages[0].content='You entered an Invalid option. you are being taken to the previous menu.'
+                     functions.replyFunction(functions.messageObject);
+                     functions.stage1(functions.messageObject,customerPhone);
+                    break;
+                 }
+             break;    
+
+            //TERMINATION FUNCTION
+             case '1*2*1*0*amount':
+                 console.log(req.paymentMeter);
+                 switch(customerInput){
+                    case '00':
+                        functions.stage1(functions.messageObject,customerPhone);
+                    break;
+                    default:
+                        if(isNaN(customerInput)){
+                            functions.messageObject.messages[0].content='You did not enter a valid value for amount.Reply with a valid amount.\n00.Home Menu`'
+                            functions.replyFunction(functions.messageObject);
+                              }else{
+                                 const amount=parseInt(customerInput);
+                                functions.paymentFunction(functions.messageObject,amount,customerPhone,req.paymentMeter);                                                
+                              }                        
+                    break;
+
+                 }
+             break;     
+             
+             
+             //TERMINATION FUNCTION
+             case '1*2*1*1*amount':
+                 console.log(req.paymentMeter);
+                 switch(customerInput){
+                    case '00':
+                        functions.stage1(functions.messageObject,customerPhone);
+                    break;
+                    default:
+                        if(isNaN(customerInput)){
+                            functions.messageObject.messages[0].content='You did not enter a valid value for amount.Reply with a valid amount.\n00.Home Menu`'
+                            functions.replyFunction(functions.messageObject);
+                              }else{
+                                 const amount=parseInt(customerInput);
+                                functions.paymentFunction(functions.messageObject,amount,customerPhone,req.paymentMeter);                                                
+                              }                        
+                    break;
+
+                 }
+             break;               
+
          }          
 
             }).catch(functions.errorFunction);

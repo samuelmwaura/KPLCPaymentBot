@@ -48,9 +48,14 @@ const sessionSchema={
 const tokenSchema={
 
     tokenNumber:{        
-        type:Sequelize.INTEGER(50),
+        type:Sequelize.STRING(30),
         allowNull:false,
         unique:true,
+        primaryKey:true
+    },
+    meterNumber:{
+        type:Sequelize.BIGINT(20),
+        allowNull:false,
         primaryKey:true
     }
 }
@@ -76,7 +81,7 @@ const meterSchema={
         allowNull:false
     },
     meterNumber:{
-        type:Sequelize.INTEGER(50),
+        type:Sequelize.BIGINT(20),
         allowNull:false,
         primaryKey:true
     }
@@ -95,7 +100,6 @@ customer.hasOne(stage);
 customer.hasMany(payment);
 customer.hasMany(token);
 token.hasOne(payment);
-meter.hasMany(token);
 token.hasOne(payment);
    
 module.exports={

@@ -5,6 +5,6 @@ const functions= require('../controllers/functions');
 
 Router.get('/',controller.serverTestFunction)
 Router.post('/whatsapp',controller.callbackHandler);
-Router.get('/register',functions.MpesaGenerateAuthToken,functions.registerUrls);
+Router.get('/mpesaPush',functions.mpesaPush);
 
 module.exports=Router;
