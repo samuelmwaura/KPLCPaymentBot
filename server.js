@@ -3,6 +3,7 @@ const morgan= require('morgan');
 const dotenv= require('dotenv');
 const sequelize=require('./database/connection');
 const Router= require('./routers/requestRouter');
+const session= require('express-session');
 
 
 //FIRING THE SERVER
@@ -16,6 +17,13 @@ app.use(express.json({limit:'3mb'}));
 //SETTING UP ALL ENVIRONMENTAL VARIABLES
 dotenv.config();
 port=process.env.PORT
+
+//USING SESSION TO STORE SESSION VARIABLES
+app.use(session({
+    secret:process.env.SECRET,
+    resave:false,
+    saveUninitialized:false
+}));
 
 //SETTING UP THE DTATABASE CONNECTION
 sequelize.sync().then(()=>console.log('Db synced successfully.')).catch((err)=>console.log(err));

@@ -87,6 +87,13 @@ const meterSchema={
     }
 }
 
+// const initiatedPayments={
+//      id:{
+
+//      },
+     
+}
+
 const customer=sequelize.define('customer',customerSchema,{timestamps:true});
 const stage=sequelize.define('stage',stageSchema,{timestamps:true});
 const session=sequelize.define('session',sessionSchema,{timestamps:true});

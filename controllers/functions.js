@@ -157,6 +157,12 @@ const MpesaGenerateAuthToken=(req,res,next)=>{
      });
 }
 
+//CONFIRMATION OF THE PAYMENT INFORMATION
+const confirmPayment=(obj)=>{
+obj.message[0].content=`PLease confirm payment of amount ${amount} to purchase tokens for the meter ${meterNumber}`;
+replyFunction(obj);
+}
+
 //GENERATE TOKEN
 const generateToken=(obj,customerPhone,meterNumber)=>{
 const tokenNumber = (Math.floor(Math.random() * 1000000006780789090809) + 1000087).toString().substring(1);
@@ -176,7 +182,7 @@ const body={
       PartyA:customerPhone,
       PartyB: 174379,
       PhoneNumber: customerPhone,
-      CallBackURL: "https://708e-197-248-114-233.ngrok.io/mpesaPush",
+      CallBackURL: "https://86e6-197-248-114-233.ngrok.io/mpesaPush",
       AccountReference: "KenyaPower",
       passKey: "bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919",
       TransactionType: "CustomerPayBillOnline" /* OPTIONAL */,
@@ -186,7 +192,7 @@ mpesa.lipaNaMpesaOnline(body).then(response=>{// the call to push the stk to the
   console.log(response);
   generateToken(obj,customerPhone,meterNumber);
   endSession(customerPhone);
-
+  stage.update({stage:'1'},{where:{customerPhone}}).then().catch(err=>console.log(err));  
 }).catch(err=>console.log(err));
 
 }
@@ -196,6 +202,8 @@ const amountFunction=(obj,meter)=>{
 obj.messages[0].content='Enter the amount.\n00.Home Menu';
 replyFunction(obj);
 }
+
+//VERIFY SUCCESS PAYMENT
 
 
 

@@ -1,6 +1,7 @@
 const {customer,token,payment,meter,stage,session}= require('../models/KplcDatabaseModel');
 const functions= require('./functions');
 
+
 //SERVER RESPONSE TEST FUNCTION
 const serverTestFunction=(req,res)=>{
     res.send('Testing the server');
@@ -9,12 +10,13 @@ const serverTestFunction=(req,res)=>{
 //API CALLBACK HANDLER FUNCTION
 const callbackHandler=(req,res)=>{
 console.log(req.body.event);
+console.log(req.session);
 
 
 //HANDLER VARIABLES
 const customerInput= req.body.event.moText[0].content;//the message from the customer.
 const customerPhone= req.body.event.moText[0].from;//the customer number.
-//global.paymentMeter=0;
+
 
 //SET TIMEOUT FUNCTION AND CALL - Customer stopped before the conversation is over
 const sessionTimeout=()=>{  
@@ -160,7 +162,7 @@ const sessionTimeout=()=>{
                      functions.stage1(functions.messageObject,customerPhone);
                      break;
                      default:
-                     functions.messageObject.messages[0].content=`Not a valid options!\n0.Back.\n00.Home Menu`
+                     functions.messageObject.messages[0].content=`Not a valid option!\n0.Back.\n00.Home Menu`
                      functions.replyFunction(functions.messageObject);
                      break;
 
@@ -188,8 +190,8 @@ const sessionTimeout=()=>{
                      functions.messageObject.messages[0].content=`You entered an invalid meter Number.Reply With a valid meter Number.\n0.Back\n00.Home Menu`;
                      functions.replyFunction(functions.messageObject)
                     }else{
-                        req.paymentMeter=existingMeter;
-                        stage.update({stage:'1*2*1*0*amount'}).then().catch(err=>console.log(err));
+                        req.session.meterNumber=meterNumber;
+                        stage.update({stage:'1*2*1*0*amount'},{where:{customerPhone}}).then().catch(err=>console.log(err));
                         functions.amountFunction(functions.messageObject);
                     //functions.paymentFunction(functions.messageObject,customerPhone,meterNumber);
                     };                                         
@@ -215,7 +217,7 @@ const sessionTimeout=()=>{
                         const meterId=parseInt(customerInput);
                         meter.findOne({where:{id:meterId}}).then(existingMeter=>{
                         if(existingMeter){                            
-                            req.paymentMeter+=existingMeter;
+                            req.session.meterNumber=existingMeter;
                             stage.update({stage:'1*2*1*1*amount'},{where:{customerPhone}}).then().catch(err=>console.log(err));
                             functions.amountFunction(functions.messageObject);
                             //functions.paymentFunction(functions.messageObject,amount,customerPhone,existingMeter);
@@ -261,7 +263,7 @@ const sessionTimeout=()=>{
 
             //TERMINATION FUNCTION
              case '1*2*1*0*amount':
-                 console.log(req.paymentMeter);
+                 console.log(req.session.meterNumber);
                  switch(customerInput){
                     case '00':
                         functions.stage1(functions.messageObject,customerPhone);
@@ -272,7 +274,7 @@ const sessionTimeout=()=>{
                             functions.replyFunction(functions.messageObject);
                               }else{
                                  const amount=parseInt(customerInput);
-                                functions.paymentFunction(functions.messageObject,amount,customerPhone,req.paymentMeter);                                                
+                                functions.paymentFunction(functions.messageObject,amount,customerPhone,req.session.meterNumber);                                              
                               }                        
                     break;
 
